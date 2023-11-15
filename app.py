@@ -10,6 +10,8 @@ from collections import deque
 import cv2 as cv
 import numpy as np
 import mediapipe as mp
+import pyttsx3
+import threading
 
 from utils import CvFpsCalc
 from model import KeyPointClassifier
@@ -98,12 +100,17 @@ def main():
     #  ########################################################################
     mode = 0
 
+    # #########################################################################
+
+    text_speech = pyttsx3.init()
+
     while True:
         fps = cvFpsCalc.get()
 
         # Process Key (ESC: end) #################################################
         key = cv.waitKey(10)
         if key == 27:  # ESC
+            x.join()
             break
         number, mode = select_mode(key, mode)
 
@@ -141,8 +148,12 @@ def main():
 
                 # Hand sign classification
                 hand_sign_id = keypoint_classifier(pre_processed_landmark_list)
-                if hand_sign_id == 2:  # Point gesture
-                    point_history.append(landmark_list[8])
+                if hand_sign_id is not None:  # Point gesture
+                    try:
+                        x = threading.Thread(target=tts, args=(text_speech, keypoint_classifier_labels[hand_sign_id]))
+                        x.start()
+                    except RuntimeError:
+                        point_history.append([0, 0])
                 else:
                     point_history.append([0, 0])
 
@@ -180,6 +191,10 @@ def main():
     cap.release()
     cv.destroyAllWindows()
 
+def tts(text_speech, letter):
+    text_speech.say(letter)
+    text_speech.runAndWait()
+    
 
 def select_mode(key, mode):
     number = -1
